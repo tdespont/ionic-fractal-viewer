@@ -33,16 +33,16 @@ export class MandelbrotPage {
         this.maxIteration = navParams.get('maxIteration');
     }
 
-    initGradient(colors:any): void {
+    initGradient(colors: any): void {
         let size = colors.length;
-        let chunk = Math.ceil(this.gradientSize/(size-1));
-        for (let i = 0; i < size-1; i++) {
-            let diffColor = this.createDiffColor(colors[i], colors[i+1]);
-            this.writeGradient(diffColor,colors[i],i*chunk,(i+1)*chunk);
+        let chunk = Math.ceil(this.gradientSize / (size - 1));
+        for (let i = 0; i < size - 1; i++) {
+            let diffColor = this.createDiffColor(colors[i], colors[i + 1]);
+            this.writeGradient(diffColor, colors[i], i * chunk, (i + 1) * chunk);
         }
     }
 
-    createDiffColor(startColor:any,endColor:any): any{
+    createDiffColor(startColor: any, endColor: any): any {
         return {
             red: endColor.red - startColor.red,
             green: endColor.green - startColor.green,
@@ -50,13 +50,14 @@ export class MandelbrotPage {
         }
     }
 
-    writeGradient(diffColor:any,startColor:any,start:any,size:any): void {
-        for (let i=start; i<=size; i++) {
+    writeGradient(diffColor: any, startColor: any, start: any, size: any): void {
+        for (let i = start; i <= size; i++) {
             let percent = i / size;
             this.gradient[i] = {
-                red:Math.floor((diffColor.red * percent) + startColor.red),
-                green:Math.floor((diffColor.green * percent) + startColor.green),
-                blue:Math.floor((diffColor.blue * percent) + startColor.blue)};
+                red: Math.floor((diffColor.red * percent) + startColor.red),
+                green: Math.floor((diffColor.green * percent) + startColor.green),
+                blue: Math.floor((diffColor.blue * percent) + startColor.blue)
+            };
         }
     }
 
@@ -74,70 +75,103 @@ export class MandelbrotPage {
 
         this.x0 = -2.8;
         this.x1 = 1.2;
-        this.y0 = (this.x0-this.x1)*this.height/(2*this.width); //-1.2;
+        this.y0 = (this.x0 - this.x1) * this.height / (2 * this.width); //-1.2;
         this.y1 = -this.y0; //1.2;
 
         let colors = new Array();
-        colors[0] = {red:255,green:0,blue:0};
-        colors[1] = {red:0,green:255,blue:0};
-        colors[2] = {red:0,green:0,blue:255};
+        colors[0] = { red: 255, green: 0, blue: 0 };
+        colors[1] = { red: 0, green: 255, blue: 0 };
+        colors[2] = { red: 0, green: 0, blue: 255 };
         this.initGradient(colors);
 
         this.drawMandelbrot();
 
         this.canvas.mandel = this;
 
+        this.canvas.addEventListener("mousedown", function (evt) {
+            evt.preventDefault();
+            if (evt.button == 0 && evt.buttons == 1) {
+                this.mandel.startSelection(this, evt.clientX, evt.clientY);
+            }
+        }, false);
+
         this.canvas.addEventListener("touchstart", function (evt) {
             evt.preventDefault();
             let touch = evt.touches[0];
-            let pos = this.mandel.getMousePos(this, touch);
-            this.mandel.new_x0 = pos.x;
-            this.mandel.new_y0 = pos.y;
+            this.mandel.startSelection(this, touch.clientX, touch.clientY);
         }, false);
 
-        this.canvas.addEventListener('touchmove', function(evt){ 
+        this.canvas.addEventListener("mousemove", function (evt) {
+            evt.preventDefault();
+            if (evt.button == 0 && evt.buttons == 1) {
+                this.mandel.moveSelection(this, evt.clientX, evt.clientY);
+            }
+        }, false);
+
+        this.canvas.addEventListener('touchmove', function (evt) {
             evt.preventDefault();
             let touch = evt.touches[0];
-            let pos = this.mandel.getMousePos(this, touch);
-            this.mandel.new_x1 = pos.x;
-            this.mandel.computeYfromX(pos.y);
-            this.mandel.drawSelection();
+            this.mandel.moveSelection(this, touch.clientX, touch.clientY);
         }, false);
 
-        this.canvas.addEventListener('touchend', function(evt){ 
+        this.canvas.addEventListener('mouseup', function (evt) {
             evt.preventDefault();
-            let tempX0 = this.mandel.map(this.mandel.new_x0, 0, this.mandel.width, this.mandel.x0, this.mandel.x1);
-            let tempX1 = this.mandel.map(this.mandel.new_x1, 0, this.mandel.width, this.mandel.x0, this.mandel.x1);
-            let tempY0 = this.mandel.map(this.mandel.new_y0, 0, this.mandel.height, this.mandel.y0, this.mandel.y1);
-            let tempY1 = this.mandel.map(this.mandel.new_y1, 0, this.mandel.height, this.mandel.y0, this.mandel.y1);
-            if (tempX0 < tempX1) {
-                this.mandel.x0 = tempX0;
-                this.mandel.x1 = tempX1;
-            } else {
-                this.mandel.x1 = tempX0;
-                this.mandel.x0 = tempX1;
+            if (evt.button == 0 && evt.buttons == 0) {
+                this.mandel.endSelection();
             }
-            if (tempY0 < tempY1) {
-                this.mandel.y0 = tempY0;
-                this.mandel.y1 = tempY1;
-            } else {
-                this.mandel.y1 = tempY0;
-                this.mandel.y0 = tempY1;
-            }
-            this.mandel.drawMandelbrot(); 
-          }, false);
+        }, false);
+
+        this.canvas.addEventListener('touchend', function (evt) {
+            evt.preventDefault();
+            this.mandel.endSelection();
+        }, false);
     }
 
-    getMousePos(canvas, evt): any {
-        var rect = canvas.getBoundingClientRect(), 
-            scaleX = canvas.width / rect.width,    
-            scaleY = canvas.height / rect.height;  
-      
-        return {
-          x: (evt.clientX - rect.left) * scaleX,
-          y: (evt.clientY - rect.top) * scaleY     
+    startSelection(canvas, clientX, clientY): void {
+        let pos = this.getMousePos(canvas, clientX, clientY);
+        this.new_x0 = pos.x;
+        this.new_y0 = pos.y;
+    }
+
+    moveSelection(canvas, clientX, clientY): void {
+        let pos = this.getMousePos(canvas, clientX, clientY);
+        this.new_x1 = pos.x;
+        this.computeYfromX(pos.y);
+        this.drawSelection();
+    }
+
+    endSelection(): void {
+        let tempX0 = this.map(this.new_x0, 0, this.width, this.x0, this.x1);
+        let tempX1 = this.map(this.new_x1, 0, this.width, this.x0, this.x1);
+        let tempY0 = this.map(this.new_y0, 0, this.height, this.y0, this.y1);
+        let tempY1 = this.map(this.new_y1, 0, this.height, this.y0, this.y1);
+        if (tempX0 < tempX1) {
+            this.x0 = tempX0;
+            this.x1 = tempX1;
+        } else {
+            this.x1 = tempX0;
+            this.x0 = tempX1;
         }
-      }
+        if (tempY0 < tempY1) {
+            this.y0 = tempY0;
+            this.y1 = tempY1;
+        } else {
+            this.y1 = tempY0;
+            this.y0 = tempY1;
+        }
+        this.drawMandelbrot();
+    }
+
+    getMousePos(canvas, clientX, clientY): any {
+        var rect = canvas.getBoundingClientRect(),
+            scaleX = canvas.width / rect.width,
+            scaleY = canvas.height / rect.height;
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        }
+    }
 
     map(val: any, origRangeStart: any, origRangeEnd: any, destRangeStart: any, destRangeEnd: any): any {
         return destRangeStart + (destRangeEnd - destRangeStart) * ((val - origRangeStart) / (origRangeEnd - origRangeStart));
@@ -155,10 +189,10 @@ export class MandelbrotPage {
         this.refresh();
         this.ctx.lineWidth = "1";
         this.ctx.strokeStyle = "white";
-        let x0 = this.new_x0/this.scale;
-        let y0 = this.new_y0/this.scale;
-        let x1 =this.new_x1/this.scale;
-        let y1 = this.new_y1/this.scale;
+        let x0 = this.new_x0 / this.scale;
+        let y0 = this.new_y0 / this.scale;
+        let x1 = this.new_x1 / this.scale;
+        let y1 = this.new_y1 / this.scale;
         let xDist = Math.abs(x0 - x1);
         let yDist = Math.abs(y0 - y1);
         if (x0 < x1 && y0 < y1) {
@@ -185,7 +219,7 @@ export class MandelbrotPage {
             this.data[index + 1] = 0;
             this.data[index + 2] = 0;
         }
-        
+
     }
 
     computeMandelbrot(): void {
