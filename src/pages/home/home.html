@@ -1,0 +1,40 @@
+<ion-header>
+  <ion-navbar>
+    <ion-title>
+      Fractal Viewer
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding>
+  <ion-list>
+    <ion-list>
+      <ion-list-header>
+        Nbr iteration max
+        <ion-badge item-end color="secondary">{{maxIteration}}</ion-badge>
+      </ion-list-header>
+      <ion-item>
+        <ion-range min="100" max="1000" pin="true" [(ngModel)]="maxIteration" color="secondary">
+          <ion-label range-left>100</ion-label>
+          <ion-label range-right>1000</ion-label>
+        </ion-range>
+      </ion-item>
+    </ion-list>
+
+    <ion-list>
+      <ion-list-header>
+        Taille gradient
+        <ion-badge item-end color="secondary">{{gradientSize}}</ion-badge>
+      </ion-list-header>
+      <ion-item>
+        <ion-range min="10" max="100" pin="true" [(ngModel)]="gradientSize" color="secondary">
+          <ion-label range-left>10</ion-label>
+          <ion-label range-right>100</ion-label>
+        </ion-range>
+      </ion-item>
+    </ion-list>
+  </ion-list>
+
+
+  <button id="generateButton" ion-button block (tap)=showMandelbrot()>Generate</button>
+</ion-content>
