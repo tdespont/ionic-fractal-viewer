@@ -1,6 +1,6 @@
 {
-  "name": "ionic-quick-start",
-  "app_id": "",
+  "name": "Fractal View",
+  "app_id": "ionic.fractal.viewer",
   "type": "ionic-angular",
   "integrations": {
     "cordova": {}

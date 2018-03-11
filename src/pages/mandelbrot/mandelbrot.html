@@ -1,14 +1,21 @@
 <ion-header>
     <ion-navbar>
-      <ion-title>
-        Mandelbrot
-      </ion-title>
+        <ion-title>
+            Mandelbrot
+        </ion-title>
+        <ion-buttons end>
+            <button id="rewindButton" ion-button icon-only (tap)=rewind()>
+                <ion-icon name="rewind"></ion-icon>
+            </button>
+            <button id="resetButton" ion-button icon-only (tap)=reset()>
+                <ion-icon name="refresh"></ion-icon>
+            </button>
+        </ion-buttons>
     </ion-navbar>
 </ion-header>
-  
+
 <ion-content padding>
     <div class="ion-canvas">
         <canvas #canvas></canvas>
     </div>
 </ion-content>
-  

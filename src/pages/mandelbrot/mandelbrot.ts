@@ -1,5 +1,9 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
 import { NavController, NavParams, App } from 'ionic-angular';
+import { LoadingController } from 'ionic-angular';
+import { ToastController } from 'ionic-angular';
+import { Gradient } from '../gradient';
+import { Bounds } from './bounds';
 
 @Component({
     selector: 'page-mandelbrot',
@@ -15,74 +19,62 @@ export class MandelbrotPage {
     private height: any;
     private imageData: any;
     private data: any;
-    private maxIteration = 500;
-    private x0: any;
-    private x1: any;
-    private y0: any;
-    private y1: any;
+    private maxIteration: any;
     private new_x0: any;
     private new_y0: any;
     private new_x1: any;
     private new_y1: any;
-    private gradient = new Array();
-    private gradientSize = 40;
-    private scale: any;
+    private init: boolean = true;
+    private gradient: Gradient;
+    private bounds: Bounds = new Bounds(null);
 
-    constructor(public navCtrl: NavController, private navParams: NavParams) {
-        this.gradientSize = navParams.get('gradientSize');
+    constructor(public navCtrl: NavController, private navParams: NavParams,
+        public loadingCtrl: LoadingController, private toastCtrl: ToastController) {
+        this.gradient = navParams.get('gradient');
         this.maxIteration = navParams.get('maxIteration');
     }
 
-    initGradient(colors: any): void {
-        let size = colors.length;
-        let chunk = Math.ceil(this.gradientSize / (size - 1));
-        for (let i = 0; i < size - 1; i++) {
-            let diffColor = this.createDiffColor(colors[i], colors[i + 1]);
-            this.writeGradient(diffColor, colors[i], i * chunk, (i + 1) * chunk);
-        }
+    private reset() {
+        this.init = true;
+        let toast = this.toastCtrl.create({
+            message: 'Fractal parameters reset',
+            duration: 2000,
+            position: 'bottom'
+        });
+        toast.present();
+        this.initFractalParameters();
+        this.drawMandelbrot();
     }
 
-    createDiffColor(startColor: any, endColor: any): any {
-        return {
-            red: endColor.red - startColor.red,
-            green: endColor.green - startColor.green,
-            blue: endColor.blue - startColor.blue,
+    private rewind() {
+        if (this.bounds.previousBounds) {
+            this.bounds = this.bounds.previousBounds;
         }
+        this.drawMandelbrot();
     }
 
-    writeGradient(diffColor: any, startColor: any, start: any, size: any): void {
-        for (let i = start; i <= size; i++) {
-            let percent = i / size;
-            this.gradient[i] = {
-                red: Math.floor((diffColor.red * percent) + startColor.red),
-                green: Math.floor((diffColor.green * percent) + startColor.green),
-                blue: Math.floor((diffColor.blue * percent) + startColor.blue)
-            };
-        }
+    private initFractalParameters(): void {
+        this.init = false;
+        this.bounds.x0 = -2.8;
+        this.bounds.x1 = 1.2;
+        this.bounds.y0 = (this.bounds.x0 - this.bounds.x1) * this.height / (2 * this.width), //-1.2;
+        this.bounds.y1 = -this.bounds.y0; //1.2;
     }
 
     ionViewDidLoad(): void {
         this.canvas = this.canvasEl.nativeElement;
         this.ctx = this.canvas.getContext('2d', { alpha: false });
-        this.scale = window.devicePixelRatio;
-        this.canvas.width *= this.scale;
-        this.canvas.height *= this.scale;
-        this.ctx.scale(this.scale, this.scale);
+        let rect = this.canvas.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.imageData = this.ctx.getImageData(0, 0, this.width, this.height);
         this.data = this.imageData.data;
 
-        this.x0 = -2.8;
-        this.x1 = 1.2;
-        this.y0 = (this.x0 - this.x1) * this.height / (2 * this.width); //-1.2;
-        this.y1 = -this.y0; //1.2;
-
-        let colors = new Array();
-        colors[0] = { red: 255, green: 0, blue: 0 };
-        colors[1] = { red: 0, green: 255, blue: 0 };
-        colors[2] = { red: 0, green: 0, blue: 255 };
-        this.initGradient(colors);
+        if (this.init) {
+            this.initFractalParameters();
+        }
 
         this.drawMandelbrot();
 
@@ -127,43 +119,44 @@ export class MandelbrotPage {
         }, false);
     }
 
-    startSelection(canvas, clientX, clientY): void {
+    private startSelection(canvas, clientX, clientY): void {
         let pos = this.getMousePos(canvas, clientX, clientY);
         this.new_x0 = pos.x;
         this.new_y0 = pos.y;
     }
 
-    moveSelection(canvas, clientX, clientY): void {
+    private moveSelection(canvas, clientX, clientY): void {
         let pos = this.getMousePos(canvas, clientX, clientY);
         this.new_x1 = pos.x;
         this.computeYfromX(pos.y);
         this.drawSelection();
     }
 
-    endSelection(): void {
-        let tempX0 = this.map(this.new_x0, 0, this.width, this.x0, this.x1);
-        let tempX1 = this.map(this.new_x1, 0, this.width, this.x0, this.x1);
-        let tempY0 = this.map(this.new_y0, 0, this.height, this.y0, this.y1);
-        let tempY1 = this.map(this.new_y1, 0, this.height, this.y0, this.y1);
+    private endSelection(): void {
+        let tempX0 = this.map(this.new_x0, 0, this.width, this.bounds.x0, this.bounds.x1);
+        let tempX1 = this.map(this.new_x1, 0, this.width, this.bounds.x0, this.bounds.x1);
+        let tempY0 = this.map(this.new_y0, 0, this.height, this.bounds.y0, this.bounds.y1);
+        let tempY1 = this.map(this.new_y1, 0, this.height, this.bounds.y0, this.bounds.y1);
+        this.bounds = new Bounds(this.bounds);
         if (tempX0 < tempX1) {
-            this.x0 = tempX0;
-            this.x1 = tempX1;
+            this.bounds.x0 = tempX0;
+            this.bounds.x1 = tempX1;
         } else {
-            this.x1 = tempX0;
-            this.x0 = tempX1;
+            this.bounds.x1 = tempX0;
+            this.bounds.x0 = tempX1;
         }
         if (tempY0 < tempY1) {
-            this.y0 = tempY0;
-            this.y1 = tempY1;
+            this.bounds.y0 = tempY0;
+            this.bounds.y1 = tempY1;
         } else {
-            this.y1 = tempY0;
-            this.y0 = tempY1;
+            this.bounds.y1 = tempY0;
+            this.bounds.y0 = tempY1;
         }
         this.drawMandelbrot();
     }
 
-    getMousePos(canvas, clientX, clientY): any {
-        var rect = canvas.getBoundingClientRect(),
+    private getMousePos(canvas, clientX, clientY): any {
+        let rect = canvas.getBoundingClientRect(),
             scaleX = canvas.width / rect.width,
             scaleY = canvas.height / rect.height;
 
@@ -173,11 +166,11 @@ export class MandelbrotPage {
         }
     }
 
-    map(val: any, origRangeStart: any, origRangeEnd: any, destRangeStart: any, destRangeEnd: any): any {
+    private map(val: any, origRangeStart: any, origRangeEnd: any, destRangeStart: any, destRangeEnd: any): any {
         return destRangeStart + (destRangeEnd - destRangeStart) * ((val - origRangeStart) / (origRangeEnd - origRangeStart));
     }
 
-    computeYfromX(pageY: any): void {
+    private computeYfromX(pageY: any): void {
         if (pageY < this.new_y0) {
             this.new_y1 = this.new_y0 - this.height * (Math.abs(this.new_x1 - this.new_x0) / this.width);
         } else {
@@ -185,14 +178,14 @@ export class MandelbrotPage {
         }
     }
 
-    drawSelection(): void {
+    private drawSelection(): void {
         this.refresh();
         this.ctx.lineWidth = "1";
         this.ctx.strokeStyle = "white";
-        let x0 = this.new_x0 / this.scale;
-        let y0 = this.new_y0 / this.scale;
-        let x1 = this.new_x1 / this.scale;
-        let y1 = this.new_y1 / this.scale;
+        let x0 = this.new_x0;
+        let y0 = this.new_y0;
+        let x1 = this.new_x1;
+        let y1 = this.new_y1;
         let xDist = Math.abs(x0 - x1);
         let yDist = Math.abs(y0 - y1);
         if (x0 < x1 && y0 < y1) {
@@ -206,14 +199,14 @@ export class MandelbrotPage {
         }
     }
 
-    drawPoint(x: any, y: any, iteration: any): void {
+    private drawPoint(x: any, y: any, iteration: any): void {
         var index = y * (this.width * 4) + x * 4;
 
         if (iteration != 0) {
-            let ratio = iteration % this.gradientSize;
-            this.data[index] = this.gradient[ratio].red;
-            this.data[index + 1] = this.gradient[ratio].green;
-            this.data[index + 2] = this.gradient[ratio].blue;
+            let color = this.gradient.getData(iteration);
+            this.data[index] = color.red;
+            this.data[index + 1] = color.green;
+            this.data[index + 2] = color.blue;
         } else {
             this.data[index] = 0;
             this.data[index + 1] = 0;
@@ -222,13 +215,13 @@ export class MandelbrotPage {
 
     }
 
-    computeMandelbrot(): void {
-        var rx = (this.x1 - this.x0) / this.width;
-        var ry = (this.y1 - this.y0) / this.height;
+    private computeMandelbrot(): void {
+        var rx = (this.bounds.x1 - this.bounds.x0) / this.width;
+        var ry = (this.bounds.y1 - this.bounds.y0) / this.height;
         for (var x = 0; x < this.width; x++) {
-            var a0 = this.x0 + x * rx;
+            var a0 = this.bounds.x0 + x * rx;
             for (var y = 0; y < this.height; y++) {
-                var b0 = this.y0 + y * ry;
+                var b0 = this.bounds.y0 + y * ry;
                 var a = 0.0;
                 var b = 0.0;
                 var iteration = 0;
@@ -251,12 +244,22 @@ export class MandelbrotPage {
         }
     }
 
-    refresh(): void {
+    private refresh(): void {
         this.ctx.putImageData(this.imageData, 0, 0);
     }
 
-    drawMandelbrot(): void {
-        this.computeMandelbrot();
-        this.refresh();
+    private drawMandelbrot(): void {
+        let loading = this.loadingCtrl.create({
+            spinner: 'bubbles',
+            content: "Fractal generating...",
+            dismissOnPageChange: true
+        });
+
+        loading.present().then(() => {
+            this.computeMandelbrot();
+            this.refresh();
+        }).then(() => {
+            loading.dismissAll();
+        });
     }
 }

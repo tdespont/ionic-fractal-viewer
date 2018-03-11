@@ -3,6 +3,11 @@
     <ion-title>
       Fractal Viewer
     </ion-title>
+    <ion-buttons end>
+      <button id="generateButton" ion-button icon-only (tap)=showMandelbrot()>
+        <ion-icon name="create"></ion-icon>
+      </button>
+    </ion-buttons>
   </ion-navbar>
 </ion-header>
 
@@ -35,6 +40,4 @@
     </ion-list>
   </ion-list>
 
-
-  <button id="generateButton" ion-button block (tap)=showMandelbrot()>Generate</button>
 </ion-content>
