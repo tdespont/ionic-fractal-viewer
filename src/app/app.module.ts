@@ -5,14 +5,14 @@ import { SplashScreen } from '@ionic-native/splash-screen';
 import { StatusBar } from '@ionic-native/status-bar';
 
 import { MyApp } from './app.component';
-import { HomePage } from '../pages/home/home';
-import { MandelbrotPage } from '../pages/mandelbrot/mandelbrot';
+import { FractalPage } from '../pages/fractal/fractalPage';
+import { SettingsPage } from '../pages/fractal/settings/settingsPage';
 
 @NgModule({
   declarations: [
     MyApp,
-    HomePage,
-    MandelbrotPage
+    FractalPage,
+    SettingsPage
   ],
   imports: [
     BrowserModule,
@@ -21,8 +21,8 @@ import { MandelbrotPage } from '../pages/mandelbrot/mandelbrot';
   bootstrap: [IonicApp],
   entryComponents: [
     MyApp,
-    HomePage,
-    MandelbrotPage
+    FractalPage,
+    SettingsPage
   ],
   providers: [
     StatusBar,

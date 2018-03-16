@@ -2,14 +2,18 @@ import { Component, ElementRef, ViewChild } from '@angular/core';
 import { NavController, NavParams, App } from 'ionic-angular';
 import { LoadingController } from 'ionic-angular';
 import { ToastController } from 'ionic-angular';
-import { Gradient } from '../gradient';
-import { Bounds } from './bounds';
+import { Gradient } from './gradient';
+import { Settings } from './settings';
+import { LinkedList } from './linkedList';
+import { FractalData } from './FractalData';
+import { SettingsPage } from './settings/settingsPage';
+import { FractalParameters } from './fractalParameters';
 
 @Component({
-    selector: 'page-mandelbrot',
-    templateUrl: 'mandelbrot.html'
+    selector: 'page-fractal',
+    templateUrl: 'fractal.html'
 })
-export class MandelbrotPage {
+export class FractalPage {
 
     @ViewChild('canvas') canvasEl: ElementRef;
 
@@ -18,24 +22,27 @@ export class MandelbrotPage {
     private width: any;
     private height: any;
     private imageData: any;
-    private data: any;
-    private maxIteration: any;
+    private settings: Settings;
     private new_x0: any;
     private new_y0: any;
     private new_x1: any;
     private new_y1: any;
-    private init: boolean = true;
-    private gradient: Gradient;
-    private bounds: Bounds = new Bounds(null);
+    private fp: FractalParameters;
 
     constructor(public navCtrl: NavController, private navParams: NavParams,
         public loadingCtrl: LoadingController, private toastCtrl: ToastController) {
-        this.gradient = navParams.get('gradient');
-        this.maxIteration = navParams.get('maxIteration');
+        this.settings = navParams.get('settings');
+        if (!this.settings) {
+            this.settings = new Settings();
+        }
+        this.fp = navParams.get('fractalParameters');
+        if (!this.fp) {
+            this.fp = new FractalParameters();
+        }
     }
 
     private reset() {
-        this.init = true;
+        this.fp.init = true;
         let toast = this.toastCtrl.create({
             message: 'Fractal parameters reset',
             duration: 2000,
@@ -47,34 +54,53 @@ export class MandelbrotPage {
     }
 
     private rewind() {
-        if (this.bounds.previousBounds) {
-            this.bounds = this.bounds.previousBounds;
-        }
+        this.fp.histo = this.fp.histo.rewind();
         this.drawMandelbrot();
     }
 
+    private forward() {
+        this.fp.histo = this.fp.histo.forward();
+        this.drawMandelbrot();
+    }
+
+    private goToSettingsPage() {
+        this.navCtrl.push(SettingsPage, {
+            settings: this.settings,
+            fractalParameters: this.fp
+        });
+    }
+
     private initFractalParameters(): void {
-        this.init = false;
-        this.bounds.x0 = -2.8;
-        this.bounds.x1 = 1.2;
-        this.bounds.y0 = (this.bounds.x0 - this.bounds.x1) * this.height / (2 * this.width), //-1.2;
-        this.bounds.y1 = -this.bounds.y0; //1.2;
+        this.fp.init = false;
+
+        let fd = new FractalData();
+        fd.x0 = -2.8;
+        fd.x1 = 1.2;
+        fd.y0 = (fd.x0 - fd.x1) * this.height / (2 * this.width); //-1.2;
+        fd.y1 = -fd.y0; //1.2;
+
+        this.fp.histo = new LinkedList(fd, null);
     }
 
     ionViewDidLoad(): void {
         this.canvas = this.canvasEl.nativeElement;
         this.ctx = this.canvas.getContext('2d', { alpha: false });
         let rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
+        this.canvas.width = rect.width / this.settings.scale;
+        this.canvas.height = rect.height / this.settings.scale;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
         this.imageData = this.ctx.getImageData(0, 0, this.width, this.height);
-        this.data = this.imageData.data;
 
-        if (this.init) {
+        if (this.fp.init) {
             this.initFractalParameters();
         }
+
+        let colors = new Array();
+        colors[0] = { red: 255, green: 0, blue: 0 };
+        colors[1] = { red: 0, green: 255, blue: 0 };
+        colors[2] = { red: 0, green: 0, blue: 255 };
+        this.fp.gradient = new Gradient(this.settings.gradientSize, colors);
 
         this.drawMandelbrot();
 
@@ -133,25 +159,27 @@ export class MandelbrotPage {
     }
 
     private endSelection(): void {
-        let tempX0 = this.map(this.new_x0, 0, this.width, this.bounds.x0, this.bounds.x1);
-        let tempX1 = this.map(this.new_x1, 0, this.width, this.bounds.x0, this.bounds.x1);
-        let tempY0 = this.map(this.new_y0, 0, this.height, this.bounds.y0, this.bounds.y1);
-        let tempY1 = this.map(this.new_y1, 0, this.height, this.bounds.y0, this.bounds.y1);
-        this.bounds = new Bounds(this.bounds);
+        let fd = this.fp.histo.getValue();
+        let tempX0 = this.map(this.new_x0, 0, this.width, fd.x0, fd.x1);
+        let tempX1 = this.map(this.new_x1, 0, this.width, fd.x0, fd.x1);
+        let tempY0 = this.map(this.new_y0, 0, this.height, fd.y0, fd.y1);
+        let tempY1 = this.map(this.new_y1, 0, this.height, fd.y0, fd.y1);
+        fd = new FractalData();
         if (tempX0 < tempX1) {
-            this.bounds.x0 = tempX0;
-            this.bounds.x1 = tempX1;
+            fd.x0 = tempX0;
+            fd.x1 = tempX1;
         } else {
-            this.bounds.x1 = tempX0;
-            this.bounds.x0 = tempX1;
+            fd.x1 = tempX0;
+            fd.x0 = tempX1;
         }
         if (tempY0 < tempY1) {
-            this.bounds.y0 = tempY0;
-            this.bounds.y1 = tempY1;
+            fd.y0 = tempY0;
+            fd.y1 = tempY1;
         } else {
-            this.bounds.y1 = tempY0;
-            this.bounds.y0 = tempY1;
+            fd.y1 = tempY0;
+            fd.y0 = tempY1;
         }
+        this.fp.histo = new LinkedList(fd, this.fp.histo);
         this.drawMandelbrot();
     }
 
@@ -203,33 +231,34 @@ export class MandelbrotPage {
         var index = y * (this.width * 4) + x * 4;
 
         if (iteration != 0) {
-            let color = this.gradient.getData(iteration);
-            this.data[index] = color.red;
-            this.data[index + 1] = color.green;
-            this.data[index + 2] = color.blue;
+            let color = this.fp.gradient.getData(iteration);
+            this.imageData.data[index] = color.red;
+            this.imageData.data[index + 1] = color.green;
+            this.imageData.data[index + 2] = color.blue;
         } else {
-            this.data[index] = 0;
-            this.data[index + 1] = 0;
-            this.data[index + 2] = 0;
+            this.imageData.data[index] = 0;
+            this.imageData.data[index + 1] = 0;
+            this.imageData.data[index + 2] = 0;
         }
 
     }
 
     private computeMandelbrot(): void {
-        var rx = (this.bounds.x1 - this.bounds.x0) / this.width;
-        var ry = (this.bounds.y1 - this.bounds.y0) / this.height;
+        let fd = this.fp.histo.getValue();
+        var rx = (fd.x1 - fd.x0) / this.width;
+        var ry = (fd.y1 - fd.y0) / this.height;
         for (var x = 0; x < this.width; x++) {
-            var a0 = this.bounds.x0 + x * rx;
+            var a0 = fd.x0 + x * rx;
             for (var y = 0; y < this.height; y++) {
-                var b0 = this.bounds.y0 + y * ry;
+                var b0 = fd.y0 + y * ry;
                 var a = 0.0;
                 var b = 0.0;
                 var iteration = 0;
-                while (iteration < this.maxIteration) {
+                while (iteration < this.settings.maxIteration) {
                     var atemp = a * a - b * b + a0;
                     var btemp = 2 * a * b + b0;
                     if (a == atemp && b == btemp) {
-                        iteration = this.maxIteration;
+                        iteration = this.settings.maxIteration;
                         break;
                     }
                     a = atemp;
@@ -239,7 +268,7 @@ export class MandelbrotPage {
                         break;
                     }
                 }
-                this.drawPoint(x, y, this.maxIteration - iteration);
+                this.drawPoint(x, y, this.settings.maxIteration - iteration);
             }
         }
     }

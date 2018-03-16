@@ -1,11 +1,17 @@
 <ion-header>
-    <ion-navbar>
+    <ion-navbar hideBackButton >
         <ion-title>
-            Mandelbrot
+            Fractal
         </ion-title>
         <ion-buttons end>
+            <button id="settingsButton" ion-button icon-only (tap)=goToSettingsPage()>
+                <ion-icon name="settings"></ion-icon>
+            </button>
             <button id="rewindButton" ion-button icon-only (tap)=rewind()>
                 <ion-icon name="rewind"></ion-icon>
+            </button>
+            <button id="forwardButton" ion-button icon-only (tap)=forward()>
+                <ion-icon name="fastforward"></ion-icon>
             </button>
             <button id="resetButton" ion-button icon-only (tap)=reset()>
                 <ion-icon name="refresh"></ion-icon>
